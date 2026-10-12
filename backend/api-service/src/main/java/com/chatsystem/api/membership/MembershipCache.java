@@ -20,6 +20,14 @@ public class MembershipCache {
         this.redis = redis;
     }
 
+    /**
+     * Starts the channel's message-id counter at 0 so its first message skips the chat server's
+     * Cassandra lookup. NX: never reset a counter that already exists.
+     */
+    public void channelCreated(String channelId) {
+        redis.opsForValue().setIfAbsent(RedisKeys.channelSequence(channelId), "0");
+    }
+
     public void friendshipAdded(long userA, long userB) {
         redis.opsForSet().add(RedisKeys.friends(userA), String.valueOf(userB));
         redis.opsForSet().add(RedisKeys.friends(userB), String.valueOf(userA));

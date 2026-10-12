@@ -133,6 +133,8 @@ class ApiIntegrationTest {
         // Once accepted, friendship is mutual and mirrored into Redis for the chat/presence servers.
         assertThat(call(HttpMethod.GET, "/channels", bob, null).body()).contains(dm);
         assertThat(call(HttpMethod.GET, "/friends/requests", bob, null).body()).isEqualTo("{\"incoming\":[],\"outgoing\":[]}");
+        // The new channel's message-id counter starts at 0, so chat servers never read Cassandra for it.
+        assertThat(redisTemplate.opsForValue().get(RedisKeys.channelSequence(dm))).isEqualTo("0");
         Awaitility.await().untilAsserted(() -> {
             assertThat(redisTemplate.opsForSet().members(RedisKeys.channelMembers(dm)))
                     .containsExactlyInAnyOrder(String.valueOf(alice.id()), String.valueOf(bob.id()));
@@ -154,6 +156,7 @@ class ApiIntegrationTest {
                 Map.of("name", "Team", "memberIds", List.of(bob.id(), carol.id())));
         assertThat(group.status().value()).isEqualTo(201);
         assertThat(call(HttpMethod.GET, "/channels", carol, null).body()).contains("\"Team\"");
+        Awaitility.await().untilAsserted(() -> assertThat(redisTemplate.keys("channel:seq:g:*")).hasSize(1));
 
         // Only the owner can remove others; members can leave.
         long groupId = Long.parseLong(group.body().replaceAll(".*\"id\":(\\d+),\"channelId\".*", "$1"));

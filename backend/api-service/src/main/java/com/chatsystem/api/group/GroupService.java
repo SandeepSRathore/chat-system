@@ -6,6 +6,7 @@ import com.chatsystem.api.membership.AfterCommit;
 import com.chatsystem.api.membership.MembershipCache;
 import com.chatsystem.api.user.UserRepository;
 import com.chatsystem.api.user.UserView;
+import com.chatsystem.common.ChannelIds;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -52,7 +53,10 @@ public class GroupService {
                 .query(Long.class)
                 .single();
         insertMembers(groupId, members);
-        AfterCommit.run(() -> membershipCache.groupMembersAdded(groupId, members));
+        AfterCommit.run(() -> {
+            membershipCache.channelCreated(ChannelIds.group(groupId));
+            membershipCache.groupMembersAdded(groupId, members);
+        });
         return new GroupView(groupId, name.strip(), ownerId, users.findAllById(members));
     }
 

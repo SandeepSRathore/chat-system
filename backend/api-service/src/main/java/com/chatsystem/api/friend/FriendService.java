@@ -5,6 +5,7 @@ import com.chatsystem.api.membership.AfterCommit;
 import com.chatsystem.api.membership.MembershipCache;
 import com.chatsystem.api.user.UserRepository;
 import com.chatsystem.api.user.UserView;
+import com.chatsystem.common.ChannelIds;
 import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -124,7 +125,10 @@ public class FriendService {
                 .param("a", userA)
                 .param("b", userB)
                 .update();
-        AfterCommit.run(() -> membershipCache.friendshipAdded(userA, userB));
+        AfterCommit.run(() -> {
+            membershipCache.channelCreated(ChannelIds.direct(userA, userB));
+            membershipCache.friendshipAdded(userA, userB);
+        });
     }
 
     private int deleteRequest(long requesterId, long addresseeId) {

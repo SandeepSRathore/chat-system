@@ -133,7 +133,7 @@ The book requires message IDs to be **unique** and **sortable by time**, and off
 ```
 message_id = INCR channel:seq:{channelId}      (Redis, AOF-persisted)
 ```
-If the counter is ever lost, the chat server reseeds it from `max(message_id)` in Cassandra the first time that channel is written to again.
+api-service creates the counter at 0 when the channel is created (a friendship is accepted or a group is made), so sending is a single `INCR`. Only when the counter is missing (Redis was flushed) does the chat server read `max(message_id)` from Cassandra and seed it with `SET … NX` before incrementing, so ids never go backwards and racing seeders still get distinct ids.
 
 ### Redis keys
 | Key | Type | Writer → Reader | Purpose |
@@ -142,7 +142,7 @@ If the counter is ever lost, the chat server reseeds it from `max(message_id)` i
 | `friends:{userId}` | set | api → presence | Who should see my presence |
 | `session:{userId}` | string (TTL 60s, refreshed) | chat → chat | Which chat server holds the user's socket |
 | `chat:server:conns:{serverId}` | string (TTL 30s) | chat → api | Least-connections discovery |
-| `channel:seq:{channelId}` | counter | chat | Message ID generator |
+| `channel:seq:{channelId}` | counter | api (creates at 0) → chat | Message ID generator |
 | `presence:{userId}` | string (TTL 30s) | presence | The user is online while the key exists |
 | `presence:last_active:{userId}` | string | presence | Last heartbeat time (epoch ms) |
 
