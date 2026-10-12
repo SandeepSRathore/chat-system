@@ -1,0 +1,70 @@
+<header class="me">
+  <div class="me-text">
+    <span class="me-name">{{ auth.user()?.displayName }}</span>
+    <span class="me-handle">&#64;{{ auth.user()?.username }}</span>
+  </div>
+  <button type="button" class="link-btn" (click)="signOut.emit()">Sign out</button>
+</header>
+
+<div class="search">
+  <label for="channel-filter" class="visually-hidden">Find a conversation</label>
+  <input
+    id="channel-filter"
+    type="search"
+    placeholder="Find a conversation"
+    [value]="filter()"
+    (input)="filter.set($any($event.target).value)"
+  />
+</div>
+
+<nav class="channels" aria-label="Conversations">
+  @if (store.channelsLoaded() && store.channels().length === 0) {
+    <div class="empty">
+      <p>No conversations yet. Add a friend to start chatting.</p>
+      <button type="button" class="btn btn-primary" (click)="addFriend.emit()">Add a friend</button>
+    </div>
+  }
+  @if (store.loadError(); as error) {
+    <p class="load-error" role="alert">{{ error }}</p>
+  }
+  <ul>
+    @for (channel of visible(); track channel.id) {
+      <li>
+        <button
+          type="button"
+          class="channel"
+          [class.active]="channel.id === store.activeId()"
+          [attr.aria-current]="channel.id === store.activeId() ? 'true' : null"
+          (click)="store.select(channel.id)"
+        >
+          <span class="avatar" [class.group]="channel.type === 'GROUP'" aria-hidden="true">
+            {{ initials(channel.name) }}
+            @if (channel.type === 'DIRECT') {
+              <span class="presence-dot" [class.online]="isOnline(channel)"></span>
+            }
+          </span>
+          <span class="channel-text">
+            <span class="channel-top">
+              <span class="channel-name">{{ channel.name }}</span>
+              <span class="channel-time">{{ channel.lastMessage?.createdAt | shortTime: now() }}</span>
+            </span>
+            <span class="channel-bottom">
+              <span class="channel-preview">{{ preview(channel) }}</span>
+              @if (store.unread()[channel.id]; as count) {
+                <span class="unread" [attr.aria-label]="count + ' unread'">{{ count }}</span>
+              }
+            </span>
+          </span>
+          @if (channel.type === 'DIRECT') {
+            <span class="visually-hidden">{{ isOnline(channel) ? ', online' : ', offline' }}</span>
+          }
+        </button>
+      </li>
+    }
+  </ul>
+</nav>
+
+<footer class="actions">
+  <button type="button" class="action" (click)="addFriend.emit()">Add friend</button>
+  <button type="button" class="action" (click)="newGroup.emit()">New group</button>
+</footer>

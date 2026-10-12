@@ -1,0 +1,5 @@
+{
+  "/api/v1/presence": { "target": "http://localhost:8070", "secure": false },
+  "/ws/presence": { "target": "http://localhost:8070", "secure": false, "ws": true },
+  "/api": { "target": "http://localhost:8080", "secure": false }
+}

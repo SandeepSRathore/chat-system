@@ -1,0 +1,84 @@
+@if (store.active(); as channel) {
+  <header class="head">
+    <button type="button" class="back" (click)="store.select(null)" aria-label="Back to conversations">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+    </button>
+    <div class="title">
+      <h2>{{ channel.name }}</h2>
+      <p class="subtitle" [class.online]="peerOnline()">
+        @if (channel.type === 'DIRECT') {
+          <span class="presence-dot" [class.online]="peerOnline()" aria-hidden="true"></span>
+        }
+        {{ subtitle() }}
+      </p>
+    </div>
+    <app-connection-badge />
+  </header>
+
+  <div #log class="log" role="log" aria-live="polite" aria-label="Messages" (scroll)="onScroll($event)">
+    @if (store.activeHasMore()) {
+      <div class="older">
+        <button type="button" class="btn btn-quiet" (click)="loadOlder()" [disabled]="store.loadingOlder()">
+          {{ store.loadingOlder() ? 'Loading…' : 'Load earlier messages' }}
+        </button>
+      </div>
+    } @else if (store.activeItems().length === 0) {
+      <p class="first">
+        {{ channel.type === 'GROUP' ? 'Say hello to the group.' : 'This is the start of your conversation with ' + channel.name + '.' }}
+      </p>
+    }
+
+    <ol class="messages">
+      @for (item of store.activeItems(); track item.key; let i = $index) {
+        <li class="msg" [class.mine]="item.senderId === me()" [class.run-start]="startsRun(i)">
+          @if (channel.type === 'GROUP' && item.senderId !== me() && startsRun(i)) {
+            <span class="sender">{{ senderName(item) }}</span>
+          }
+          <div class="bubble" [class.failed]="item.state === 'failed'" [class.sending]="item.state === 'sending'">
+            <p class="text">{{ item.content }}</p>
+          </div>
+          <span class="meta">
+            <time>{{ item.createdAt | clockTime }}</time>
+            @switch (item.state) {
+              @case ('sending') {
+                <span class="state sending">Sending</span>
+              }
+              @case ('sent') {
+                <span class="state" [attr.title]="'Message #' + item.messageId + ' in this conversation'">Sent</span>
+              }
+              @case ('failed') {
+                <span class="state failed" role="alert">Not sent: {{ item.error }}</span>
+                <button type="button" class="retry" (click)="store.retry(item)">Retry</button>
+              }
+            }
+          </span>
+        </li>
+      }
+    </ol>
+  </div>
+
+  <form class="composer" (submit)="$event.preventDefault(); send()">
+    <label for="composer" class="visually-hidden">Message {{ channel.name }}</label>
+    <textarea
+      #composer
+      id="composer"
+      rows="1"
+      [placeholder]="'Message ' + channel.name"
+      [value]="draft()"
+      (input)="draft.set($any($event.target).value)"
+      (keydown)="onKeydown($event)"
+    ></textarea>
+    <button type="submit" class="btn btn-primary" [disabled]="!canSend()">Send</button>
+    @if (remaining() < 500) {
+      <span class="counter" [class.over]="remaining() < 0" aria-live="polite">{{ remaining() }} characters left</span>
+    }
+    @if (socket.status() === 'reconnecting') {
+      <span class="queued">Offline. Messages will send when the connection returns.</span>
+    }
+  </form>
+} @else {
+  <div class="placeholder">
+    <app-connection-badge />
+    <p>Pick a conversation, or add a friend to start one.</p>
+  </div>
+}

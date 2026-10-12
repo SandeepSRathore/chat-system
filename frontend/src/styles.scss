@@ -1,0 +1,201 @@
+/* Design tokens: a cool "signal room" palette. One bold element: the live connection state. */
+:root {
+  --paper: #f2f5f7;
+  --surface: #ffffff;
+  --ink: #17212b;
+  --ink-muted: #52606d;
+  --rule: #d8e0e6;
+  --slate: #1d2833;
+  --slate-raised: #26343f;
+  --slate-ink: #e3eaf0;
+  --slate-muted: #9fb0bf;
+  --teal: #0d6964;
+  --teal-ink: #ffffff;
+  --teal-soft: #dcefed;
+  --online: #2e9e67;
+  --amber: #b7791f;
+  --danger: #b4232f;
+  --danger-soft: #fbe9ea;
+  --focus: #2b7de9;
+
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --step-3: 2.25rem;
+
+  --radius-sm: 6px;
+  --radius-bubble: 16px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121a21;
+    --surface: #18222b;
+    --ink: #e4ebf1;
+    --ink-muted: #9aabb9;
+    --rule: #2a3742;
+    --slate: #0d141a;
+    --slate-raised: #18222b;
+    --slate-ink: #e4ebf1;
+    --slate-muted: #8fa1b1;
+    --teal: #1f8a83;
+    --teal-ink: #ffffff;
+    --teal-soft: #173634;
+    --online: #3dbb7d;
+    --amber: #e0a43e;
+    --danger: #f07a83;
+    --danger-soft: #3a1d21;
+    --focus: #6aa7ff;
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--step-0);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Shared controls */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--teal);
+  color: var(--teal-ink);
+}
+
+.btn-primary:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: var(--rule);
+}
+
+.btn-quiet:not(:disabled):hover {
+  background: var(--paper);
+}
+
+.field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.field label {
+  font-weight: 500;
+  font-size: var(--step--1);
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.field input:focus-visible {
+  outline-offset: 0;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: var(--step--1);
+  margin: 0;
+}
+
+.form-error {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--step--1);
+}
+
+.presence-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--slate-muted);
+  flex: none;
+}
+
+.presence-dot.online {
+  background: var(--online);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,26 @@
+server:
+  port: 8070
+
+spring:
+  application:
+    name: presence-service
+  threads:
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+chat:
+  presence:
+    # Book: a client heartbeats every 5s; it is offline after missing heartbeats for this long.
+    ttl: 30s
+  jwt:
+    secret: change-me-change-me-change-me-change-me-0123456789
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

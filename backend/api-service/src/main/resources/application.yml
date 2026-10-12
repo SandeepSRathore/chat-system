@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/chat
+    username: chat
+    password: chat
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cassandra:
+    contact-points: 127.0.0.1:9042
+    request:
+      timeout: 5s
+    local-datacenter: datacenter1
+    keyspace-name: chat
+
+chat:
+  jwt:
+    secret: change-me-change-me-change-me-change-me-0123456789
+    ttl: 24h
+  zookeeper-connect: localhost:2181
+  max-group-size: 100
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

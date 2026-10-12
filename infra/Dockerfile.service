@@ -1,0 +1,14 @@
+# Builds one backend module (api-service, chat-service or presence-service) from the Maven reactor.
+FROM maven:3.9-eclipse-temurin-25 AS build
+ARG MODULE
+WORKDIR /src
+COPY . .
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -q -B -pl ${MODULE} -am package -DskipTests \
+ && cp ${MODULE}/target/${MODULE}-*.jar /app.jar
+
+FROM eclipse-temurin:25-jre
+# Six JVMs share the Docker VM with Cassandra and Kafka, so keep each one small.
+ENV JAVA_TOOL_OPTIONS="-Xmx192m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m"
+COPY --from=build /app.jar /app.jar
+ENTRYPOINT ["java", "-jar", "/app.jar"]

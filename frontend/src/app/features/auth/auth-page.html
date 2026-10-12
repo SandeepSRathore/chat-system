@@ -1,0 +1,71 @@
+<main class="auth">
+  <section class="intro" aria-labelledby="brand">
+    <h1 id="brand" class="brand">Relay</h1>
+    <p class="lede">Messages go from your device to a chat server, through a queue, and on to whoever is online.</p>
+    <svg class="route" viewBox="0 0 320 64" role="img" aria-label="A message travels from you, through a chat server and a queue, to a friend">
+      <line x1="16" y1="32" x2="304" y2="32" />
+      <circle cx="16" cy="32" r="7" class="node you" />
+      <circle cx="112" cy="32" r="7" class="node" />
+      <circle cx="208" cy="32" r="7" class="node" />
+      <circle cx="304" cy="32" r="7" class="node friend" />
+      <circle cx="16" cy="32" r="4" class="packet" />
+      <text x="16" y="60">you</text>
+      <text x="112" y="60">chat server</text>
+      <text x="208" y="60">queue</text>
+      <text x="304" y="60">friend</text>
+    </svg>
+  </section>
+
+  <section class="panel" aria-labelledby="form-title">
+    <h2 id="form-title">{{ isRegister() ? 'Create an account' : 'Sign in' }}</h2>
+
+    <form (submit)="onSubmit($event)" novalidate>
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" autocomplete="username" [formField]="credentials.username" />
+        @if (credentials.username().touched() && credentials.username().invalid()) {
+          <p class="field-error">{{ credentials.username().errors()[0].message }}</p>
+        }
+      </div>
+
+      @if (isRegister()) {
+        <div class="field">
+          <label for="displayName">Display name</label>
+          <input id="displayName" autocomplete="name" [formField]="credentials.displayName" />
+          @if (credentials.displayName().touched() && credentials.displayName().invalid()) {
+            <p class="field-error">{{ credentials.displayName().errors()[0].message }}</p>
+          }
+        </div>
+      }
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          [attr.autocomplete]="isRegister() ? 'new-password' : 'current-password'"
+          [formField]="credentials.password"
+        />
+        @if (credentials.password().touched() && credentials.password().invalid()) {
+          <p class="field-error">{{ credentials.password().errors()[0].message }}</p>
+        }
+      </div>
+
+      @if (serverError(); as error) {
+        <p class="form-error" role="alert">{{ error }}</p>
+      }
+
+      <button class="btn btn-primary submit" type="submit" [disabled]="busy()">
+        {{ busy() ? 'Please wait…' : isRegister() ? 'Create account' : 'Sign in' }}
+      </button>
+    </form>
+
+    <p class="switch">
+      @if (isRegister()) {
+        Already have an account? <a routerLink="/login">Sign in</a>
+      } @else {
+        New here? <a routerLink="/register">Create an account</a>
+      }
+    </p>
+  </section>
+</main>

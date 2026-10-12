@@ -1,0 +1,42 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: chat-service
+  threads:
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cassandra:
+    contact-points: 127.0.0.1:9042
+    request:
+      timeout: 5s
+    local-datacenter: datacenter1
+    keyspace-name: chat
+  kafka:
+    bootstrap-servers: 127.0.0.1:9092
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        linger.ms: 0
+    consumer:
+      auto-offset-reset: earliest
+
+chat:
+  server-id: chat-1
+  public-ws-url: ws://localhost:8091/ws/chat
+  zookeeper-connect: localhost:2181
+  max-message-length: 4000
+  jwt:
+    secret: change-me-change-me-change-me-change-me-0123456789
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
