@@ -1,7 +1,8 @@
 import { Component, computed, inject, output, signal } from '@angular/core';
 import { AuthService } from '../../core/auth.service';
 import { ChatStore } from '../../core/chat-store.service';
-import { Channel } from '../../core/models';
+import { Channel, User } from '../../core/models';
+import { errorMessage } from '../../core/api.service';
 import { PresenceSocketService } from '../../core/presence-socket.service';
 import { ShortTimePipe, initials } from './format';
 import { NowService } from './now.service';
@@ -30,6 +31,24 @@ export class ChannelList {
   });
 
   protected readonly initials = initials;
+  protected readonly requestError = signal<string | null>(null);
+
+  protected async accept(user: User): Promise<void> {
+    await this.answer(() => this.store.acceptFriend(user), `The request from ${user.displayName} could not be accepted.`);
+  }
+
+  protected async decline(user: User): Promise<void> {
+    await this.answer(() => this.store.declineFriend(user), `The request from ${user.displayName} could not be declined.`);
+  }
+
+  private async answer(action: () => Promise<void>, failure: string): Promise<void> {
+    this.requestError.set(null);
+    try {
+      await action();
+    } catch (e) {
+      this.requestError.set(errorMessage(e, failure));
+    }
+  }
 
   protected isOnline(channel: Channel): boolean {
     return channel.peerId !== null && (this.presence.presence().get(channel.peerId)?.online ?? false);

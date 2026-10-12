@@ -35,7 +35,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.awaitility.Awaitility;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "chat.max-group-size=3")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"chat.max-group-size=3", "chat.jwt.secret=integration-test-secret-integration-test-secret"})
 @Testcontainers
 class ApiIntegrationTest {
 
@@ -115,11 +115,24 @@ class ApiIntegrationTest {
         Session carol = register("carol_it");
         Session dave = register("dave_it");
 
-        assertThat(call(HttpMethod.POST, "/friends/" + bob.id(), alice, null).status().value()).isEqualTo(201);
-
-        // Friendship is mutual and mirrored into Redis for the chat/presence servers.
         String dm = "dm:" + Math.min(alice.id(), bob.id()) + ":" + Math.max(alice.id(), bob.id());
+
+        // A request alone grants nothing: no conversation, no history, no channel membership.
+        assertThat(call(HttpMethod.POST, "/friends/requests/" + bob.id(), alice, null).body()).contains("\"PENDING\"");
+        assertThat(call(HttpMethod.GET, "/channels", alice, null).body()).doesNotContain(dm);
+        assertThat(call(HttpMethod.GET, "/channels/" + dm + "/messages", alice, null).status().value()).isEqualTo(403);
+        assertThat(redisTemplate.hasKey(RedisKeys.channelMembers(dm))).isFalse();
+        assertThat(call(HttpMethod.GET, "/friends/requests", bob, null).body()).contains("\"incoming\":[{\"id\":" + alice.id());
+
+        // Only the addressee can accept.
+        assertThat(call(HttpMethod.POST, "/friends/requests/" + alice.id() + "/accept", carol, null).status().value())
+                .isEqualTo(404);
+        assertThat(call(HttpMethod.POST, "/friends/requests/" + alice.id() + "/accept", bob, null).status().value())
+                .isEqualTo(200);
+
+        // Once accepted, friendship is mutual and mirrored into Redis for the chat/presence servers.
         assertThat(call(HttpMethod.GET, "/channels", bob, null).body()).contains(dm);
+        assertThat(call(HttpMethod.GET, "/friends/requests", bob, null).body()).isEqualTo("{\"incoming\":[],\"outgoing\":[]}");
         Awaitility.await().untilAsserted(() -> {
             assertThat(redisTemplate.opsForSet().members(RedisKeys.channelMembers(dm)))
                     .containsExactlyInAnyOrder(String.valueOf(alice.id()), String.valueOf(bob.id()));
@@ -150,6 +163,24 @@ class ApiIntegrationTest {
                 .isEqualTo(204);
         assertThat(call(HttpMethod.GET, "/channels/g:" + groupId + "/messages", carol, null).status().value())
                 .isEqualTo(403);
+    }
+
+    @Test
+    void crossingRequestsBecomeFriendshipAndRequestsCanBeDeclined() {
+        Session erin = register("erin_it");
+        Session finn = register("finn_it");
+        Session gus = register("gus_it");
+
+        call(HttpMethod.POST, "/friends/requests/" + finn.id(), erin, null);
+        // Finn asking Erin back is mutual consent.
+        assertThat(call(HttpMethod.POST, "/friends/requests/" + erin.id(), finn, null).body()).contains("\"ACCEPTED\"");
+        assertThat(call(HttpMethod.GET, "/friends", erin, null).body()).contains("finn_it");
+
+        call(HttpMethod.POST, "/friends/requests/" + gus.id(), erin, null);
+        assertThat(call(HttpMethod.DELETE, "/friends/requests/" + erin.id(), gus, null).status().value()).isEqualTo(204);
+        assertThat(call(HttpMethod.POST, "/friends/requests/" + erin.id() + "/accept", gus, null).status().value())
+                .isEqualTo(404);
+        assertThat(call(HttpMethod.GET, "/friends", gus, null).body()).isEqualTo("[]");
     }
 
     @Test

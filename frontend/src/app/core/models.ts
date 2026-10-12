@@ -29,6 +29,16 @@ export interface Channel {
   lastMessage: ChatMessage | null;
 }
 
+export interface FriendRequests {
+  incoming: User[];
+  outgoing: User[];
+}
+
+export interface FriendRequestResult {
+  status: 'PENDING' | 'ACCEPTED';
+  user: User;
+}
+
 export interface Group {
   id: number;
   channelId: string;

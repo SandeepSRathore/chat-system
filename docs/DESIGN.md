@@ -11,6 +11,7 @@ It describes what this repository actually builds. Where the code deviates from 
 | Requirement | Notes |
 |---|---|
 | 1:1 chat | Low delivery latency, real time over WebSocket |
+| Friends | Friendship needs consent: a request stays pending until the other user accepts it |
 | Group chat | Up to **100** members per group |
 | Online presence | Shows whether friends are online, and when they were last active |
 | Message history | Stored permanently and paged by scrolling back |
@@ -106,7 +107,8 @@ flowchart LR
 ### Relational (PostgreSQL): users, friends, groups
 ```sql
 users(id BIGSERIAL PK, username UNIQUE, display_name, password_hash, created_at)
-friendships(user_id, friend_id, created_at, PK(user_id, friend_id))   -- stored in both directions
+friend_requests(requester_id, addressee_id, created_at, PK(requester_id, addressee_id))  -- pending only
+friendships(user_id, friend_id, created_at, PK(user_id, friend_id))   -- stored in both directions, written on accept
 chat_groups(id BIGSERIAL PK, name, owner_id, created_at)
 group_members(group_id, user_id, joined_at, PK(group_id, user_id))   -- ≤ 100 rows per group
 ```

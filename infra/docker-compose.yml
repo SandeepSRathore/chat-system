@@ -1,8 +1,9 @@
 # Infrastructure only:        docker compose up -d
 # Full system (2x each svc):  docker compose --profile app up -d --build   → http://localhost:8000
+#   The app profile needs CHAT_JWT_SECRET in infra/.env (see .env.example).
 name: chat-system
 
-x-jwt-secret: &jwt-secret "change-me-change-me-change-me-change-me-0123456789"
+x-jwt-secret: &jwt-secret ${CHAT_JWT_SECRET:-}
 
 x-common-env: &common-env
   CHAT_JWT_SECRET: *jwt-secret

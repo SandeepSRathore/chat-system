@@ -25,6 +25,8 @@ public class JwtService {
 
     static final String USERNAME_CLAIM = "username";
     private static final String ISSUER = "chat-system";
+    /** Shipped as a default in an early commit, so anyone can forge tokens with it. */
+    private static final String PUBLISHED_EXAMPLE_SECRET = "change-me-change-me-change-me-change-me-0123456789";
 
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
@@ -36,6 +38,14 @@ public class JwtService {
     }
 
     public JwtService(String secret, Duration ttl, Clock clock) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "CHAT_JWT_SECRET is not set. Generate one with `openssl rand -base64 48` and start every service with it.");
+        }
+        if (PUBLISHED_EXAMPLE_SECRET.equals(secret)) {
+            throw new IllegalStateException(
+                    "CHAT_JWT_SECRET is the example value from this project's public history; generate your own.");
+        }
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             throw new IllegalArgumentException("JWT secret must be at least 32 bytes for HS256");

@@ -17,10 +17,37 @@
   />
 </div>
 
+@if (store.friendRequests().incoming.length) {
+  <section class="requests" aria-labelledby="requests-title">
+    <h2 id="requests-title">Friend requests</h2>
+    <ul>
+      @for (user of store.friendRequests().incoming; track user.id) {
+        <li>
+          <span class="request-who">
+            <span class="request-name">{{ user.displayName }}</span>
+            <span class="request-handle">&#64;{{ user.username }}</span>
+          </span>
+          <span class="request-actions">
+            <button type="button" class="request-accept" (click)="accept(user)" [attr.aria-label]="'Accept ' + user.displayName">
+              Accept
+            </button>
+            <button type="button" class="request-decline" (click)="decline(user)" [attr.aria-label]="'Decline ' + user.displayName">
+              Decline
+            </button>
+          </span>
+        </li>
+      }
+    </ul>
+    @if (requestError(); as error) {
+      <p class="load-error" role="alert">{{ error }}</p>
+    }
+  </section>
+}
+
 <nav class="channels" aria-label="Conversations">
   @if (store.channelsLoaded() && store.channels().length === 0) {
     <div class="empty">
-      <p>No conversations yet. Add a friend to start chatting.</p>
+      <p>No conversations yet. Send a friend request to start chatting.</p>
       <button type="button" class="btn btn-primary" (click)="addFriend.emit()">Add a friend</button>
     </div>
   }

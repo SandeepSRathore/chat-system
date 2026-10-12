@@ -26,7 +26,7 @@ describe('ChatStore', () => {
   let store: ChatStore;
   let frames: Subject<ChatServerFrame>;
   let sent: object[];
-  let api: { channels: ReturnType<typeof vi.fn>; history: ReturnType<typeof vi.fn>; presence: ReturnType<typeof vi.fn> };
+  let api: Record<'channels' | 'history' | 'presence' | 'friendRequests' | 'acceptFriendRequest', ReturnType<typeof vi.fn>>;
 
   beforeEach(async () => {
     frames = new Subject();
@@ -35,6 +35,8 @@ describe('ChatStore', () => {
       channels: vi.fn().mockResolvedValue([DM, GROUP]),
       history: vi.fn().mockResolvedValue([]),
       presence: vi.fn().mockResolvedValue([]),
+      friendRequests: vi.fn().mockResolvedValue({ incoming: [], outgoing: [] }),
+      acceptFriendRequest: vi.fn().mockResolvedValue(BOB),
     };
     TestBed.configureTestingModule({
       providers: [
@@ -106,6 +108,17 @@ describe('ChatStore', () => {
 
     store.select(GROUP.id);
     expect(store.unread()[GROUP.id]).toBe(0);
+  });
+
+  it('accepting a friend request opens the new conversation', async () => {
+    api.friendRequests.mockResolvedValueOnce({ incoming: [BOB], outgoing: [] });
+    await store.refreshFriendRequests();
+    expect(store.friendRequests().incoming).toEqual([BOB]);
+
+    await store.acceptFriend(BOB);
+    expect(api.acceptFriendRequest).toHaveBeenCalledWith(BOB.id);
+    expect(store.friendRequests().incoming).toEqual([]);
+    expect(store.activeId()).toBe('dm:1:2');
   });
 
   it('fetches presence for group members on demand', () => {

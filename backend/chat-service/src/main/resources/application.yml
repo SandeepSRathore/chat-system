@@ -33,7 +33,8 @@ chat:
   zookeeper-connect: localhost:2181
   max-message-length: 4000
   jwt:
-    secret: change-me-change-me-change-me-change-me-0123456789
+    # Never committed: start every service with the same CHAT_JWT_SECRET (at least 32 bytes).
+    secret: ${CHAT_JWT_SECRET:}
 
 management:
   endpoints:

@@ -16,7 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /** Heartbeat → ONLINE; socket gone + missed heartbeats → key expiry → OFFLINE. TTL shortened to 2s. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "chat.presence.ttl=2s")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {"chat.presence.ttl=2s", "chat.jwt.secret=integration-test-secret-integration-test-secret"})
 @Testcontainers
 class PresenceIntegrationTest {
 

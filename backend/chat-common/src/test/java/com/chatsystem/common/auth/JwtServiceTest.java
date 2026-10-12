@@ -35,6 +35,16 @@ class JwtServiceTest {
     }
 
     @Test
+    void missingOrPublishedSecretFailsFast() {
+        assertThatThrownBy(() -> new JwtService(null, Duration.ofMinutes(1)))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("CHAT_JWT_SECRET is not set");
+        assertThatThrownBy(() -> new JwtService("  ", Duration.ofMinutes(1)))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new JwtService("change-me-change-me-change-me-change-me-0123456789", Duration.ofMinutes(1)))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("public history");
+    }
+
+    @Test
     void shortSecretIsRejected() {
         assertThatThrownBy(() -> new JwtService("short", Duration.ofMinutes(1)))
                 .isInstanceOf(IllegalArgumentException.class);

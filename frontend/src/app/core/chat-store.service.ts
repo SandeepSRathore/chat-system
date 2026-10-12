@@ -3,7 +3,7 @@ import { Subscription, skip } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { ChatSocketService } from './chat-socket.service';
-import { Channel, ChatItem, ChatMessage, ChatServerFrame } from './models';
+import { Channel, ChatItem, ChatMessage, ChatServerFrame, FriendRequests, User } from './models';
 import { PresenceSocketService } from './presence-socket.service';
 
 const PAGE_SIZE = 50;
@@ -22,6 +22,7 @@ export class ChatStore {
   readonly unread = signal<Readonly<Record<string, number>>>({});
   readonly loadingOlder = signal(false);
   readonly loadError = signal<string | null>(null);
+  readonly friendRequests = signal<FriendRequests>({ incoming: [], outgoing: [] });
 
   private readonly items = signal<Readonly<Record<string, ChatItem[]>>>({});
   private readonly exhausted = signal<ReadonlySet<string>>(new Set());
@@ -41,11 +42,41 @@ export class ChatStore {
     this.subscriptions = new Subscription();
     this.subscriptions.add(this.chatSocket.frames$.subscribe((frame) => this.onFrame(frame)));
     this.subscriptions.add(this.chatSocket.connected$.subscribe(() => void this.resync()));
-    // Someone befriended us: the presence server pushes a fresh snapshot, so pick up the new conversation.
-    this.subscriptions.add(this.presenceSocket.snapshots$.pipe(skip(1)).subscribe(() => void this.refreshChannels()));
+    // A friend request was sent, accepted or withdrawn: the presence server pushes a fresh snapshot.
+    this.subscriptions.add(
+      this.presenceSocket.snapshots$.pipe(skip(1)).subscribe(() => {
+        void this.refreshChannels();
+        void this.refreshFriendRequests();
+      }),
+    );
     this.chatSocket.start();
     this.presenceSocket.start();
-    await this.refreshChannels();
+    await Promise.all([this.refreshChannels(), this.refreshFriendRequests()]);
+  }
+
+  async refreshFriendRequests(): Promise<void> {
+    try {
+      this.friendRequests.set(await this.api.friendRequests());
+    } catch {
+      // keep the last known requests; the next snapshot or reconnect retries
+    }
+  }
+
+  /** Accepts an incoming request and opens the new conversation. */
+  async acceptFriend(user: User): Promise<void> {
+    await this.api.acceptFriendRequest(user.id);
+    await Promise.all([this.refreshChannels(), this.refreshFriendRequests()]);
+    this.select(this.directChannelId(user.id));
+  }
+
+  async declineFriend(user: User): Promise<void> {
+    await this.api.declineFriendRequest(user.id);
+    await this.refreshFriendRequests();
+  }
+
+  directChannelId(otherUserId: number): string {
+    const me = this.auth.user()!.id;
+    return `dm:${Math.min(me, otherUserId)}:${Math.max(me, otherUserId)}`;
   }
 
   destroy(): void {
@@ -58,6 +89,7 @@ export class ChatStore {
     this.unread.set({});
     this.exhausted.set(new Set());
     this.activeId.set(null);
+    this.friendRequests.set({ incoming: [], outgoing: [] });
   }
 
   async refreshChannels(): Promise<void> {
@@ -147,7 +179,7 @@ export class ChatStore {
 
   /** After a (re)connect: catch up on what arrived while offline and flush the outbox. */
   private async resync(): Promise<void> {
-    await this.refreshChannels();
+    await Promise.all([this.refreshChannels(), this.refreshFriendRequests()]);
     const active = this.activeId();
     if (active) {
       await this.loadLatest(active);

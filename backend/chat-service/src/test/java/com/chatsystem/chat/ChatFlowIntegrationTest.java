@@ -24,7 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.kafka.KafkaContainer;
 
 /** WebSocket → id generator → Kafka → (persister → Cassandra) + (router → Redis pub/sub → WebSocket). */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "chat.jwt.secret=integration-test-secret-integration-test-secret")
 @Testcontainers
 class ChatFlowIntegrationTest {
 

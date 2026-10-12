@@ -1,6 +1,5 @@
 import { Component, computed, inject, output, signal, viewChild } from '@angular/core';
 import { ApiService, errorMessage } from '../../core/api.service';
-import { AuthService } from '../../core/auth.service';
 import { ChatStore } from '../../core/chat-store.service';
 import { User } from '../../core/models';
 import { Modal } from './modal';
@@ -27,12 +26,26 @@ import { Modal } from './modal';
               <span class="name">{{ user.displayName }}</span>
               <span class="handle">&#64;{{ user.username }}</span>
             </span>
-            @if (friendIds().has(user.id)) {
-              <button type="button" class="btn btn-quiet" (click)="open(user)">Open chat</button>
-            } @else {
-              <button type="button" class="btn btn-primary" [disabled]="adding() === user.id" (click)="add(user)">
-                {{ adding() === user.id ? 'Adding…' : 'Add' }}
-              </button>
+            @switch (relation(user)) {
+              @case ('friend') {
+                <button type="button" class="btn btn-quiet" (click)="open(user)">Open chat</button>
+              }
+              @case ('incoming') {
+                <button type="button" class="btn btn-primary" [disabled]="busy() === user.id" (click)="accept(user)">
+                  Accept request
+                </button>
+              }
+              @case ('outgoing') {
+                <span class="pending">Request sent</span>
+                <button type="button" class="btn btn-quiet" [disabled]="busy() === user.id" (click)="withdraw(user)">
+                  Withdraw
+                </button>
+              }
+              @default {
+                <button type="button" class="btn btn-primary" [disabled]="busy() === user.id" (click)="request(user)">
+                  {{ busy() === user.id ? 'Sending…' : 'Send request' }}
+                </button>
+              }
             }
           </li>
         } @empty {
@@ -50,11 +63,11 @@ import { Modal } from './modal';
     .name { font-weight: 500; }
     .handle { color: var(--ink-muted); font-size: var(--step--1); }
     .none { color: var(--ink-muted); }
+    .pending { color: var(--ink-muted); font-size: var(--step--1); margin-left: auto; }
   `,
 })
 export class AddFriendDialog {
   private readonly api = inject(ApiService);
-  private readonly auth = inject(AuthService);
   private readonly store = inject(ChatStore);
   private readonly modal = viewChild.required(Modal);
 
@@ -63,11 +76,22 @@ export class AddFriendDialog {
   protected readonly query = signal('');
   protected readonly results = signal<User[]>([]);
   protected readonly searched = signal(false);
-  protected readonly adding = signal<number | null>(null);
+  protected readonly busy = signal<number | null>(null);
   protected readonly error = signal<string | null>(null);
-  protected readonly friendIds = computed(
+  private readonly friendIds = computed(
     () => new Set(this.store.channels().flatMap((c) => (c.peerId !== null ? [c.peerId] : []))),
   );
+
+  protected relation(user: User): 'friend' | 'incoming' | 'outgoing' | 'none' {
+    if (this.friendIds().has(user.id)) {
+      return 'friend';
+    }
+    const { incoming, outgoing } = this.store.friendRequests();
+    if (incoming.some((u) => u.id === user.id)) {
+      return 'incoming';
+    }
+    return outgoing.some((u) => u.id === user.id) ? 'outgoing' : 'none';
+  }
 
   private debounce?: ReturnType<typeof setTimeout>;
 
@@ -90,23 +114,43 @@ export class AddFriendDialog {
     }, 250);
   }
 
-  protected async add(user: User): Promise<void> {
-    this.adding.set(user.id);
+  protected async request(user: User): Promise<void> {
+    await this.run(user, async () => {
+      const result = await this.api.sendFriendRequest(user.id);
+      if (result.status === 'ACCEPTED') {
+        // They had already asked us, so this completed the friendship.
+        await this.store.refreshChannels();
+        this.open(user);
+      }
+      await this.store.refreshFriendRequests();
+    }, `The request to ${user.displayName} could not be sent.`);
+  }
+
+  protected async accept(user: User): Promise<void> {
+    await this.run(user, async () => {
+      await this.store.acceptFriend(user);
+      this.modal().close();
+    }, `The request from ${user.displayName} could not be accepted.`);
+  }
+
+  protected async withdraw(user: User): Promise<void> {
+    await this.run(user, () => this.store.declineFriend(user), 'The request could not be withdrawn.');
+  }
+
+  private async run(user: User, action: () => Promise<void>, failure: string): Promise<void> {
+    this.busy.set(user.id);
     this.error.set(null);
     try {
-      await this.api.addFriend(user.id);
-      await this.store.refreshChannels();
-      this.open(user);
+      await action();
     } catch (e) {
-      this.error.set(errorMessage(e, `${user.displayName} could not be added.`));
+      this.error.set(errorMessage(e, failure));
     } finally {
-      this.adding.set(null);
+      this.busy.set(null);
     }
   }
 
   protected open(user: User): void {
-    const me = this.auth.user()!.id;
-    this.store.select(`dm:${Math.min(me, user.id)}:${Math.max(me, user.id)}`);
+    this.store.select(this.store.directChannelId(user.id));
     this.modal().close();
   }
 }

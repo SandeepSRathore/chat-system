@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Service, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Channel, ChatMessage, ChatServer, Group, PresenceStatus, User } from './models';
+import { Channel, ChatMessage, ChatServer, FriendRequestResult, FriendRequests, Group, PresenceStatus, User } from './models';
 
 /** Typed access to api-service (and the presence lookup routed by the load balancer). */
 @Service()
@@ -26,8 +26,22 @@ export class ApiService {
     return firstValueFrom(this.http.get<User[]>('/api/v1/users/search', { params: { q: query } }));
   }
 
-  addFriend(userId: number): Promise<User> {
-    return firstValueFrom(this.http.post<User>(`/api/v1/friends/${userId}`, null));
+  friendRequests(): Promise<FriendRequests> {
+    return firstValueFrom(this.http.get<FriendRequests>('/api/v1/friends/requests'));
+  }
+
+  /** Becomes a friendship right away only if the other user had already asked us. */
+  sendFriendRequest(userId: number): Promise<FriendRequestResult> {
+    return firstValueFrom(this.http.post<FriendRequestResult>(`/api/v1/friends/requests/${userId}`, null));
+  }
+
+  acceptFriendRequest(userId: number): Promise<User> {
+    return firstValueFrom(this.http.post<User>(`/api/v1/friends/requests/${userId}/accept`, null));
+  }
+
+  /** Declines an incoming request or withdraws an outgoing one. */
+  declineFriendRequest(userId: number): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`/api/v1/friends/requests/${userId}`));
   }
 
   createGroup(name: string, memberIds: number[]): Promise<Group> {

@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,9 +29,25 @@ public class FriendController {
         return friendService.friendsOf(CurrentUser.id(jwt));
     }
 
-    @PostMapping("/{userId}")
-    @ResponseStatus(HttpStatus.CREATED)
-    UserView add(@AuthenticationPrincipal Jwt jwt, @PathVariable long userId) {
-        return friendService.addFriend(CurrentUser.id(jwt), userId);
+    @GetMapping("/requests")
+    FriendService.FriendRequests requests(@AuthenticationPrincipal Jwt jwt) {
+        return friendService.requestsOf(CurrentUser.id(jwt));
+    }
+
+    @PostMapping("/requests/{userId}")
+    FriendService.RequestResult sendRequest(@AuthenticationPrincipal Jwt jwt, @PathVariable long userId) {
+        return friendService.sendRequest(CurrentUser.id(jwt), userId);
+    }
+
+    @PostMapping("/requests/{userId}/accept")
+    UserView accept(@AuthenticationPrincipal Jwt jwt, @PathVariable long userId) {
+        return friendService.accept(CurrentUser.id(jwt), userId);
+    }
+
+    /** Declines an incoming request or withdraws an outgoing one. */
+    @DeleteMapping("/requests/{userId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void decline(@AuthenticationPrincipal Jwt jwt, @PathVariable long userId) {
+        friendService.decline(CurrentUser.id(jwt), userId);
     }
 }

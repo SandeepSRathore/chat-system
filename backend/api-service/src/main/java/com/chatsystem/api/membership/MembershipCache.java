@@ -30,6 +30,13 @@ public class MembershipCache {
         redis.convertAndSend(RedisKeys.friendsChanged(userB), "");
     }
 
+    /** Lets connected clients (via the presence servers) pick up new or withdrawn friend requests. */
+    public void friendRequestsChanged(long... userIds) {
+        for (long userId : userIds) {
+            redis.convertAndSend(RedisKeys.friendsChanged(userId), "");
+        }
+    }
+
     public void groupMembersAdded(long groupId, Collection<Long> userIds) {
         if (!userIds.isEmpty()) {
             redis.opsForSet().add(RedisKeys.channelMembers(ChannelIds.group(groupId)),
