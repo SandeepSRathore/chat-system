@@ -1,5 +1,5 @@
 import { Service, computed, inject, signal } from '@angular/core';
-import { Subscription, skip } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { ChatSocketService } from './chat-socket.service';
@@ -25,6 +25,8 @@ export class ChatStore {
   readonly friendRequests = signal<FriendRequests>({ incoming: [], outgoing: [] });
 
   private readonly items = signal<Readonly<Record<string, ChatItem[]>>>({});
+  private channelsVersion = 0;
+  private requestsVersion = 0;
   private readonly exhausted = signal<ReadonlySet<string>>(new Set());
   private subscriptions?: Subscription;
 
@@ -42,9 +44,11 @@ export class ChatStore {
     this.subscriptions = new Subscription();
     this.subscriptions.add(this.chatSocket.frames$.subscribe((frame) => this.onFrame(frame)));
     this.subscriptions.add(this.chatSocket.connected$.subscribe(() => void this.resync()));
-    // A friend request was sent, accepted or withdrawn: the presence server pushes a fresh snapshot.
+    // The presence server pushes a snapshot once our socket is registered and again whenever a friend
+    // request is sent, accepted or withdrawn. Refresh on every one, including the first: a request made
+    // while the socket was still registering only shows up in that first snapshot's refresh.
     this.subscriptions.add(
-      this.presenceSocket.snapshots$.pipe(skip(1)).subscribe(() => {
+      this.presenceSocket.snapshots$.subscribe(() => {
         void this.refreshChannels();
         void this.refreshFriendRequests();
       }),
@@ -55,8 +59,12 @@ export class ChatStore {
   }
 
   async refreshFriendRequests(): Promise<void> {
+    const version = ++this.requestsVersion;
     try {
-      this.friendRequests.set(await this.api.friendRequests());
+      const requests = await this.api.friendRequests();
+      if (version === this.requestsVersion) {
+        this.friendRequests.set(requests);
+      }
     } catch {
       // keep the last known requests; the next snapshot or reconnect retries
     }
@@ -92,12 +100,22 @@ export class ChatStore {
     this.friendRequests.set({ incoming: [], outgoing: [] });
   }
 
+  /**
+   * Refreshes can overlap (startup, reconnect, presence snapshots, accepting a request). Only the most
+   * recently started one may write, so a slow, older response can't overwrite a newer list.
+   */
   async refreshChannels(): Promise<void> {
+    const version = ++this.channelsVersion;
     try {
-      this.channels.set(await this.api.channels());
-      this.loadError.set(null);
+      const channels = await this.api.channels();
+      if (version === this.channelsVersion) {
+        this.channels.set(channels);
+        this.loadError.set(null);
+      }
     } catch {
-      this.loadError.set('Conversations could not be loaded. Retrying when the connection returns.');
+      if (version === this.channelsVersion) {
+        this.loadError.set('Conversations could not be loaded. Retrying when the connection returns.');
+      }
     } finally {
       this.channelsLoaded.set(true);
     }

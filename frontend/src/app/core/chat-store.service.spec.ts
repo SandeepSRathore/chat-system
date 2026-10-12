@@ -25,11 +25,13 @@ const msg = (channelId: string, messageId: number, senderId: number, content = `
 describe('ChatStore', () => {
   let store: ChatStore;
   let frames: Subject<ChatServerFrame>;
+  let snapshots: Subject<void>;
   let sent: object[];
   let api: Record<'channels' | 'history' | 'presence' | 'friendRequests' | 'acceptFriendRequest', ReturnType<typeof vi.fn>>;
 
   beforeEach(async () => {
     frames = new Subject();
+    snapshots = new Subject();
     sent = [];
     api = {
       channels: vi.fn().mockResolvedValue([DM, GROUP]),
@@ -51,7 +53,7 @@ describe('ChatStore', () => {
         },
         {
           provide: PresenceSocketService,
-          useValue: { snapshots$: new Subject<void>(), start: vi.fn(), stop: vi.fn(), merge: vi.fn() },
+          useValue: { snapshots$: snapshots, start: vi.fn(), stop: vi.fn(), merge: vi.fn() },
         },
       ],
     });
@@ -119,6 +121,27 @@ describe('ChatStore', () => {
     expect(api.acceptFriendRequest).toHaveBeenCalledWith(BOB.id);
     expect(store.friendRequests().incoming).toEqual([]);
     expect(store.activeId()).toBe('dm:1:2');
+  });
+
+  it('reloads friend requests on every presence snapshot, including the first', async () => {
+    api.friendRequests.mockClear();
+    api.friendRequests.mockResolvedValue({ incoming: [BOB], outgoing: [] });
+    snapshots.next();
+    await vi.waitFor(() => expect(store.friendRequests().incoming).toEqual([BOB]));
+    expect(api.friendRequests).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a slow, older conversation list that resolves after a newer one', async () => {
+    let resolveStale!: (channels: Channel[]) => void;
+    api.channels.mockReturnValueOnce(new Promise<Channel[]>((r) => (resolveStale = r)));
+    api.channels.mockResolvedValueOnce([DM, GROUP]);
+
+    const stale = store.refreshChannels();
+    await store.refreshChannels();
+    resolveStale([]);
+    await stale;
+
+    expect(store.channels().map((c) => c.id)).toEqual([DM.id, GROUP.id]);
   });
 
   it('fetches presence for group members on demand', () => {

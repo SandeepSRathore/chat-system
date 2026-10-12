@@ -1,0 +1,12 @@
+{
+  "name": "chat-system-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser walkthrough of the running stack; saves the README screenshots",
+  "scripts": {
+    "screenshots": "node screenshots.mjs ../docs/screenshots"
+  },
+  "devDependencies": {
+    "playwright-core": "1.56.1"
+  }
+}
