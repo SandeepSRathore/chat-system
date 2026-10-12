@@ -22,7 +22,8 @@ public class MembershipCache {
 
     /**
      * Starts the channel's message-id counter at 0 so its first message skips the chat server's
-     * Cassandra lookup. NX: never reset a counter that already exists.
+     * Cassandra lookup. Call it only for a channel that cannot have messages yet: a missing counter
+     * on an older channel must be reseeded from Cassandra by the chat server instead.
      */
     public void channelCreated(String channelId) {
         redis.opsForValue().setIfAbsent(RedisKeys.channelSequence(channelId), "0");

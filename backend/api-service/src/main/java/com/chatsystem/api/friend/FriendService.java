@@ -119,14 +119,22 @@ public class FriendService {
     }
 
     private void befriend(long userA, long userB) {
-        jdbc.sql("""
+        int inserted = jdbc.sql("""
                         INSERT INTO friendships (user_id, friend_id) VALUES (:a, :b), (:b, :a)
                         ON CONFLICT DO NOTHING""")
                 .param("a", userA)
                 .param("b", userB)
                 .update();
+        // Crossing requests sent at the same moment can leave the opposite one pending.
+        deleteRequest(userA, userB);
+        deleteRequest(userB, userA);
+        // Only a brand-new friendship has a brand-new channel. Starting the counter at 0 for an existing
+        // one (e.g. after a Redis flush) would reuse message ids and overwrite stored messages.
+        boolean newChannel = inserted > 0;
         AfterCommit.run(() -> {
-            membershipCache.channelCreated(ChannelIds.direct(userA, userB));
+            if (newChannel) {
+                membershipCache.channelCreated(ChannelIds.direct(userA, userB));
+            }
             membershipCache.friendshipAdded(userA, userB);
         });
     }

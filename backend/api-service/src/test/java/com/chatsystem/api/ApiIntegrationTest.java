@@ -25,6 +25,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.RestClient;
@@ -83,6 +84,9 @@ class ApiIntegrationTest {
 
     @Autowired
     StringRedisTemplate redisTemplate;
+
+    @Autowired
+    JdbcClient jdbc;
 
     RestClient http;
 
@@ -184,6 +188,26 @@ class ApiIntegrationTest {
         assertThat(call(HttpMethod.POST, "/friends/requests/" + erin.id() + "/accept", gus, null).status().value())
                 .isEqualTo(404);
         assertThat(call(HttpMethod.GET, "/friends", gus, null).body()).isEqualTo("[]");
+    }
+
+    @Test
+    void acceptingAStaleRequestNeverResetsAnExistingChannelsCounter() {
+        Session hal = register("hal_it");
+        Session ivy = register("ivy_it");
+        String dm = "dm:" + Math.min(hal.id(), ivy.id()) + ":" + Math.max(hal.id(), ivy.id());
+        call(HttpMethod.POST, "/friends/requests/" + ivy.id(), hal, null);
+        call(HttpMethod.POST, "/friends/requests/" + hal.id() + "/accept", ivy, null);
+
+        // Two requests sent at the same moment can leave the opposite one pending; then Redis loses the counter.
+        jdbc.sql("INSERT INTO friend_requests (requester_id, addressee_id) VALUES (:a, :b)")
+                .param("a", ivy.id()).param("b", hal.id()).update();
+        redisTemplate.delete(RedisKeys.channelSequence(dm));
+
+        assertThat(call(HttpMethod.POST, "/friends/requests/" + ivy.id() + "/accept", hal, null).status().value())
+                .isEqualTo(200);
+        // Left missing so the chat server reseeds it from Cassandra instead of restarting at 1.
+        assertThat(redisTemplate.hasKey(RedisKeys.channelSequence(dm))).isFalse();
+        assertThat(call(HttpMethod.GET, "/friends/requests", hal, null).body()).isEqualTo("{\"incoming\":[],\"outgoing\":[]}");
     }
 
     @Test
